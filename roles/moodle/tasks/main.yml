@@ -1,0 +1,121 @@
+---
+  - name: Modify repository
+    apt_repository:
+      repo: "{{ item }}"
+      update_cache: yes
+      state: present
+    with_items:
+       - "ppa:ondrej/nginx"
+       - "ppa:ondrej/php"
+    become: yes
+
+  - name: Install nginx and dependencies
+    apt:
+      name: "{{ item }}"
+      state: present
+      update_cache: yes
+      cache_valid_time: 3600
+      dpkg_options: 'force-confnew,force-confdef'
+    become: yes
+    with_items:
+     - nginx
+     - nginx-extras
+    notify: restart nginx
+
+  - name: Delete example site and legacy configs
+    file:
+      path: "{{ item }}"
+      state: absent
+    become: yes
+    with_items:
+      - /etc/nginx/sites-enabled/default
+      - /etc/nginx/sites-available/default
+    notify: restart nginx
+  - name: Install php and dependencies
+    apt:
+      name: "{{ item }}"
+      state: present
+    become: yes
+    with_items:
+     - php7.4
+     - php7.4-fpm
+     - php7.4-pspell
+     - php7.4-curl
+     - php7.4-gd
+     - php7.4-intl
+     - php7.4-mysql
+     - php7.4-xml
+     - php7.4-xmlrpc
+     - php7.4-mbstring
+     - php7.4-soap
+     - php7.4-zip
+     - php7.4-redis
+    notify: restart php7.4-fpm
+
+  - name: Start nginx
+    become: yes
+    service:
+      name: nginx
+      state: started
+
+  - name: Start php7.4-fpm
+    become: yes
+    service:
+      name: php7.4-fpm
+      state: started
+
+  - name: Download moodle
+    get_url:
+      url: https://download.moodle.org/download.php/stable38/moodle-3.8.9.tgz
+ #   url: moodle-{{ moodle_version }}.tgz
+      dest: /tmp/moodle-3.8.9.tgz
+    become: yes
+
+  - name: Extract Moodle
+    unarchive:
+      src: /tmp/moodle-3.9.1.tgz
+      dest: /var/www/html
+      owner: www-data
+      group: www-data
+      copy: no
+    become: yes
+
+  - name: change permissions
+    file:
+     dest: /var/www/html/moodle
+     owner: "{{ nginx_user }}"
+     group: "{{ nginx_user }}"
+     mode: "u=rwX,g=rX,o=rX"
+     recurse: yes
+    become: yes
+
+  - name: Create config dirs
+    file:
+      path: /var/www/html/moodledata/
+      state: directory
+      owner: "{{ nginx_user }}"
+      group: "{{ nginx_user }}"
+      mode: 0755
+     become: yes
+
+  - name: Create site config
+    template:
+      src: "/etc/ansible/roles/moodle/templates/moodle.j2"
+      dest: "/etc/nginx/sites-available/moodle.eleks.com"
+      owner: root
+      group: root
+      mode: "u+rw,g+rw,o+r"
+    notify:
+     - restart nginx
+    become: yes
+
+
+  - name: Enable site config
+    file:
+      src: "/etc/nginx/sites-available/{{ item.name }}"
+      dest: "/etc/nginx/sites-enabled/{{ item.name }}"
+      state: link
+    with_items: '{{ nginx_sites }}'
+    notify:
+     - restart nginx
+    become: yes    

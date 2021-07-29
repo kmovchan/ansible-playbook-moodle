@@ -66,14 +66,14 @@
 
   - name: Download moodle
     get_url:
-      url: https://download.moodle.org/download.php/stable38/moodle-3.8.9.tgz
+      url: https://download.moodle.org/download.php/direct/stable38/moodle-3.8.9.tgz
  #   url: moodle-{{ moodle_version }}.tgz
       dest: /tmp/moodle-3.8.9.tgz
     become: yes
 
   - name: Extract Moodle
     unarchive:
-      src: /tmp/moodle-3.9.1.tgz
+      src: /tmp/moodle-3.8.9.tgz
       dest: /var/www/html
       owner: www-data
       group: www-data
@@ -100,7 +100,7 @@
 
   - name: Create site config
     template:
-      src: "/etc/ansible/roles/moodle/templates/moodle.j2"
+      src: "moodle.j2"
       dest: "/etc/nginx/sites-available/moodle.eleks.com"
       owner: root
       group: root
